@@ -13,17 +13,17 @@ jobs:
   unit_testing:
     strategy:
       matrix:
-        nodejs_version: [18,19,20]
+        nodejs_version: [20]
         os: [ubuntu-latest]
-        exclude: # here i say i donot want the nodejs_version: 19 run with os macos-latest
-        - nodejs_version: 19
-          os: macos-latest
+        # exclude: # here i say i donot want the nodejs_version: 19 run with os macos-latest
+        # - nodejs_version: 19
+        #   os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: checkout repo
         uses: actions/checkout@v4
       - name: setup node-js version - ${{ matrix.nodejs_version}}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.2.0
         with:
           node-version: ${{ matrix.nodejs_version }}
       - name: install npm # npm(node package manager )
@@ -35,7 +35,7 @@ jobs:
         if: always()
         #if: steps.test-job.outcome == 'failure'|| steps.test-job.outcome == 'success' #here i say if the step (unit_testing) 
         #fail or pass the job (archive test result) will continue and upload the artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: Mocha-Test-Result
           path: test-result.xml
@@ -56,9 +56,39 @@ jobs:
       - name: archive coverage result
         continue-on-error: true
         #if: always()  
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: code-coverage-Result
           path: coverage
           retention-days: 5 #the duration in days after that duration the artifact will be deleted
-  
+  docker:
+    needs: [code-coverage , unit_testing]
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: docker login
+        uses: docker/login-action@v3.7.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME}}
+          password: ${{ secrets.DOCKERHUB_PASSWORD}}
+      - name: build
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: . #this is where the docker file located
+          push: false
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}
+      
+      - name: docker image test
+        run: |
+          docker images
+          docker run -- name solar-system-app -d /
+          -p 3000:3000 /
+          -e MONGO_URI=$MONGO_USERNAME /
+          -e MONGO_PASSWORD=$MONGO_PASSWORD /
+          ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}
+          export IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' solar-system-app)
+          echo $IP
+
+          echo testing image url using wget
+          wget -q -o -127.0.0.1:3000/live | grep live
