@@ -4,7 +4,7 @@ on:
     branches: ["main", "feature/*"]
 
 env:
-  MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superdata' #the link connection to database
+  MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData' #the link connection to database
   #(mongodb+srv://> the type of connection) (supercluster>the name of server/cluster) (/superdata > the name of database ) 
   MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
   MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
