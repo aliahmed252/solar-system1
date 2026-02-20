@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.nodejs_version }}
-      - name: install npm # npm (node package manager )
+      - name: install npm # npm(node package manager )
         run: npm install
       - name: unit_testing
         id: test-job
