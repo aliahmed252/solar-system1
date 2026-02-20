@@ -15,7 +15,7 @@ jobs:
       matrix:
         nodejs_version: [18,19,20]
         os: [ubuntu-latest]
-        exclude: # here i say i dont want the nodejs_version: 19 run with os macos-latest
+        exclude: # here i say i donot want the nodejs_version: 19 run with os macos-latest
         - nodejs_version: 19
           os: macos-latest
     runs-on: ${{ matrix.os }}
