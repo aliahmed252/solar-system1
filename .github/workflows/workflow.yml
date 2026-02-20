@@ -39,3 +39,25 @@ jobs:
         with:
           name: Mocha-Test-Result
           path: test-result.xml
+  
+  code-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: setup node js
+        uses: actions/setup-node@v6.2.0
+        with:
+          node-version: 20
+      - name: install dependencies
+        run: npm install
+      - name: check code coverage
+        run: npm run coverage
+      - name: archive coverage result
+        if: always()  
+        uses: actions/upload-artifact@v6
+        with:
+          name: code-coverage-Result
+          path: coverage
+          retention-days: 5 #the duration in days after that duration the artifact will be deleted
+  
