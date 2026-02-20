@@ -32,7 +32,8 @@ jobs:
         id: test-job
         run: npm test
       - name: archive test result
-        if: steps.test-job.outcome == 'failure'|| steps.test-job.outcome == 'success' #here i say if the step (unit_testing) 
+        if: always()
+        #if: steps.test-job.outcome == 'failure'|| steps.test-job.outcome == 'success' #here i say if the step (unit_testing) 
         #fail or pass the job (archive test result) will continue and upload the artifact
         uses: actions/upload-artifact@v6
         with:
