@@ -14,9 +14,9 @@ jobs:
     strategy:
       matrix:
         nodejs_version: [18,19,20]
-        os: [ubuntu-latest,macos-latest]
+        os: [ubuntu-latest]
         exclude: # here i say i dont want the nodejs_version: 19 run with os macos-latest
-          nodejs_version: 19
+        - nodejs_version: 19
           os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -29,8 +29,11 @@ jobs:
       - name: install npm # npm (node package manager )
         run: npm install
       - name: unit_testing
+        id: test-job
         run: npm test
       - name: archive test result
+        if steps.test-job.outcome == "failure" || steps.test-job == "success" #here i say if the step (unit_testing) 
+        #fail or pass the job (archive test result) will continue and upload the artifact
         uses: actions/upload-artifact@v6
         with:
           name: Mocha-Test-Result
