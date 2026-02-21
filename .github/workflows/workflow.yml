@@ -75,7 +75,7 @@ jobs:
       - name: build
         uses: docker/build-push-action@v6.18.0
         with:
-          context: . #this is where the docker file located
+          context: . #this is where the docker  file located
           push: false
           tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}
       
