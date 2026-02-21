@@ -91,4 +91,4 @@ jobs:
           echo $IP
 
           echo testing image url using wget
-          wget -q -o -127.0.0.1:3000/live | grep live
+          wget -q -o - 127.0.0.1:3000/live | grep live
