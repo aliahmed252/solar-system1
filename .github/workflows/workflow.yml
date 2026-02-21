@@ -77,18 +77,26 @@ jobs:
         with:
           context: . #this is where the docker  file located
           push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}
-      
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }} # the final name of the image 
+      # (github.sha ): commit id each build will take a different tag
       - name: docker image test
         run: |
           docker images
-          docker run --name solar-system-app -d \
+          docker run --name solar-system-app -d \  
           -p 3000:3000 \
-          -e MONGO_URI=$MONGO_USERNAME \
+          -e MONGO_URI=$MONGO_URI \
+          -e MONGO_USERNAME=$MONGO_USERNAME \
           -e MONGO_PASSWORD=$MONGO_PASSWORD \
           ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}
           export IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' solar-system-app)
           echo $IP
 
           echo testing image url using wget
-          wget -q -O - 127.0.0.1:3000/live | grep live
+          wget -q -O - 127.0.0.1:3000/live | grep live 
+# --name solar-system-app: the name of the container  | -d: detached mode: play the container in the background
+# -p 3000:3000: the first 3000: is the port of app in container | the second is the port of app in the host
+# -e: pass the  environment variables
+#  ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}: in final the name of the image
+# docker inspect: to get the ip of the container
+# wget if the container return "live" grep will find it this means the app work | if grep not found "live" > step fail > pipeline fail
+# 127.0.0.1: this is loopback address : means that the device talk to self whem i hit 127.0.0.1:3000 > i say talk to server that work on the same device
