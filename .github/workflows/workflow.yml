@@ -53,9 +53,9 @@ jobs:
         run: npm install
       - name: check code coverage
         run: npm run coverage
-      - name: archive coverage result
         continue-on-error: true
-        #if: always()  
+      - name: archive coverage result
+        if: always()  
         uses: actions/upload-artifact@v6.0.0
         with:
           name: code-coverage-Result
