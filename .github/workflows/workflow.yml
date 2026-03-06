@@ -1,6 +1,6 @@
 name: solar system workflow
 on:
-  workflow_dispatch:
+  push: 
 
 env:
   MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData' #the link connection to database
@@ -151,7 +151,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Kubernetes/staging
+        working-directory: kubernetes/staging
 
     env:
       NAMESPACE: stagging
@@ -215,4 +215,5 @@ jobs:
 
       - name: Output application URL
         run: |
+
           echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
