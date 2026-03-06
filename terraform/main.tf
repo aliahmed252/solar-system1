@@ -207,7 +207,7 @@ resource "aws_security_group" "eks_node_sg" {
   ingress {
     description = "node to node communication"
     from_port   = 0
-    to_port     = 65535 #allow all ports form 0 to 65535
+    to_port     = 0 #allow all ports form 0 to 65535
     protocol    = "-1"  # all protocols
     self        = true  #any resource (node,pods) has the same security group (eks_node_sg) can talk to others nodes
   }
