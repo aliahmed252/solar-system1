@@ -165,6 +165,10 @@ jobs:
       - name: setup terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: terraform init
+        run: terraform init
+        working-directory: terraform
+
       - name: Get Terraform outputs
         id: tf_outputs
         run: |
@@ -220,4 +224,5 @@ jobs:
         run: |
 
           echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
+
 
