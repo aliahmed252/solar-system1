@@ -231,11 +231,37 @@ jobs:
           kubectl get pods -n $NAMESPACE -l app=solar-system
           kubectl get svc -n $NAMESPACE -l app=solar-system
           kubectl get ingress -n $NAMESPACE
-
+      - name: Wait for Ingress IP or Hostname
+        id: wait_ingress
+        run: |
+          echo "Waiting for Ingress external IP or hostname..."
+          for i in {1..60}; do  # 60 مرات × 10 ثانية = 10 دقائق تقريبًا
+            INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
+                         -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
+            INGRESS_HOST=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
+                           -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+            if [ -n "$INGRESS_IP" ]; then
+              echo "Found IP: $INGRESS_IP"
+              echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
+              break
+            elif [ -n "$INGRESS_HOST" ]; then
+              echo "Found Hostname: $INGRESS_HOST"
+              echo "INGRESS_IP=$INGRESS_HOST" >> $GITHUB_ENV
+              break
+            fi
+            echo "Not ready yet, waiting 10s..."
+            sleep 10
+          done
+      
+          if [ -z "$INGRESS_IP" ]; then
+            echo "Error: Ingress not ready after waiting."
+            exit 1
+          fi
       - name: Output application URL
         run: |
 
           echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
+
 
 
 
