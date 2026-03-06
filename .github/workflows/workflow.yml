@@ -154,7 +154,7 @@ jobs:
         working-directory: kubernetes/staging
 
     env:
-      NAMESPACE: stagging
+      NAMESPACE: staging
       REPLICAS: 2
       K8S_IMAGE: $DOCKER_IMAGE
 
@@ -232,6 +232,7 @@ jobs:
         run: |
 
           echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
+
 
 
 
