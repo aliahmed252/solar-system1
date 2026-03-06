@@ -305,13 +305,13 @@ resource "null_resource" "generate_kubeconfig" {
 }
 
 resource "aws_eks_access_entry" "github_actions" {
-  cluster_name  = final-project_eks
+  cluster_name  = "final-project_eks"
   principal_arn = "arn:aws:iam::829163697796:user/ali-ahmed"
   type          = "STANDARD"
 }
 
 resource "aws_eks_access_policy_association" "github_admin" {
-  cluster_name  = final-project_eks
+  cluster_name  = "final-project_eks"
   principal_arn = "arn:aws:iam::829163697796:user/ali-ahmed"
 
   policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
