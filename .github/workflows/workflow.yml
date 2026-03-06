@@ -152,12 +152,12 @@ jobs:
 
     defaults:
       run:
-        working-directory: k8s
+        working-directory: Kubernetes/staging
 
     env:
       NAMESPACE: stagging
       REPLICAS: 2
-      K8S_IMAGE: ${{ env.DOCKER_IMAGE }}
+      K8S_IMAGE: $DOCKER_IMAGE
 
     steps:
       - name: Checkout repo
