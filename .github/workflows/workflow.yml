@@ -149,7 +149,7 @@ jobs:
                  cluster: final-project_eks
 
 
-            - name: Deploy k8s deployments
+            - name: Deploy  k8s deployments
               run: |
                kubectl apply -f deployment.yml
                kubectl apply -f service.yml
