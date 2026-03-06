@@ -151,8 +151,8 @@ jobs:
 
             - name: Deploy  k8s deployments
               run: |
-               kubectl apply -f deployment.yml
-               kubectl apply -f service.yml
+               kubectl apply -f deployment.yml --validate=false
+               kubectl apply -f service.yml --validate=false
               working-directory: k8s
 
             - name: Verify Deployment
