@@ -153,7 +153,7 @@ jobs:
               run: |
                kubectl apply -f deployment.yml
                kubectl apply -f service.yml
-              working-directory: ./k8s
+              working-directory: k8s
 
             - name: Verify Deployment
               run: |
