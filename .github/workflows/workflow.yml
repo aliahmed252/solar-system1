@@ -1,0 +1,207 @@
+name: solar system workflow
+on:
+  push:
+    branches: ["main", "feature/*"]
+
+env:
+  MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'
+  MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
+  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+  DOCKER_IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}
+
+jobs:
+  unit_testing:
+    strategy:
+      matrix:
+        nodejs_version: [20]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v4
+      - name: setup node-js version - ${{ matrix.nodejs_version}}
+        uses: actions/setup-node@v6.2.0
+        with:
+          node-version: ${{ matrix.nodejs_version }}
+      - name: install npm
+        run: npm install
+      - name: unit_testing
+        id: test-job
+        run: npm test
+      - name: archive test result 
+        if: always()
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: Mocha-Test-Result
+          path: test-results.xml
+  
+  code-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: setup node js
+        uses: actions/setup-node@v6.2.0
+        with:
+          node-version: 20
+      - name: install dependencies
+        run: npm install
+      - name: check code coverage
+        run: npm run coverage
+        continue-on-error: true
+      - name: archive coverage result
+        if: always()  
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: code-coverage-Result
+          path: coverage
+          retention-days: 5
+
+  docker:
+    needs: [code-coverage , unit_testing]
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: docker login
+        uses: docker/login-action@v3.7.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME}}
+          password: ${{ secrets.DOCKERHUB_PASSWORD}}
+      - name: build
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          push: true
+          tags: ${{ env.DOCKER_IMAGE }}
+      - name: docker image test
+        run: |
+          docker images
+          docker run --name solar-system-app -d \
+          -p 3000:3000 \
+          -e MONGO_URI=$MONGO_URI \
+          -e MONGO_USERNAME=$MONGO_USERNAME \
+          -e MONGO_PASSWORD=$MONGO_PASSWORD \
+          ${{ env.DOCKER_IMAGE }}
+          export IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' solar-system-app)
+          echo $IP
+          echo testing image url using wget
+          wget -q -O - 127.0.0.1:3000/live | grep live
+
+  terraform:
+    needs: [docker]
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: configure aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: setup terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Terraform Init
+        run: terraform init
+      - name: Terraform fmt
+        run: terraform fmt -check
+        continue-on-error: true
+      - name: Terraform Validate
+        run: terraform validate 
+      - name: terraform plan
+        id: plan
+        run: terraform plan 
+      - name: terraform apply 
+        run: terraform apply --auto-approve
+
+  k8s_deploy:
+    needs: [terraform]
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: kubernetes/staging
+
+    env:
+      NAMESPACE: staging
+      REPLICAS: 2
+      K8S_IMAGE: $DOCKER_IMAGE
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: configure aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: setup terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: terraform init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Get Terraform outputs
+        id: tf_outputs
+        run: |
+          CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
+          echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_ENV
+        working-directory: terraform
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
+
+      - name: Apply Kubernetes manifests
+        run: |
+          envsubst < deployment.yaml | kubectl apply -f -
+          envsubst < service.yaml | kubectl apply -f -
+          envsubst < ingress.yaml | kubectl apply -f -
+
+      - name: Wait for deployment rollout
+        run: kubectl rollout status deployment/solar-system -n $NAMESPACE
+
+      - name: Wait for Ingress IP
+        id: wait_ingress
+        run: |
+          echo "Waiting for Ingress external IP..."
+          for i in {1..30}; do
+            INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
+                        -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [ -n "$INGRESS_IP" ]; then
+              break
+            fi
+            echo "Not ready yet, waiting 10s..."
+            sleep 10
+          done
+          if [ -z "$INGRESS_IP" ]; then
+            echo "Ingress IP not available, using hostname fallback"
+            INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
+                        -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          fi
+          echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
+          echo "Ingress ready at $INGRESS_IP"
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n $NAMESPACE -l app=solar-system
+          kubectl get svc -n $NAMESPACE -l app=solar-system
+          kubectl get ingress -n $NAMESPACE
+
+      - name: Output application URL
+        run: |
+          echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
