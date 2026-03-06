@@ -181,6 +181,7 @@ jobs:
         run: |
           CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
           echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_ENV
+        working-directory: terraform
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
@@ -231,6 +232,7 @@ jobs:
         run: |
 
           echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
+
 
 
 
