@@ -8,6 +8,7 @@ env:
   #(mongodb+srv://> the type of connection) (supercluster>the name of server/cluster) (/superdata > the name of database ) 
   MONGO_USERNAME: ${{ vars.MONGO_USERNAME }}
   MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+  DOCKER_IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}
 
 jobs:
   unit_testing:
@@ -77,17 +78,17 @@ jobs:
         with:
           context: . #this is where the docker  file located
           push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }} # the final name of the image 
+          tags: ${{ env.DOCKER_IMAGE }} # the final name of the image 
       # (github.sha ): commit id each build will take a different tag
       - name: docker image test
         run: |
           docker images
-          docker run --name solar-system-app -d \  
+          docker run --name solar-system-app -d \
           -p 3000:3000 \
           -e MONGO_URI=$MONGO_URI \
           -e MONGO_USERNAME=$MONGO_USERNAME \
           -e MONGO_PASSWORD=$MONGO_PASSWORD \
-          ${{ vars.DOCKERHUB_USERNAME }}/solar-system-test:${{ github.sha }}
+          ${{ env.DOCKER_IMAGE }}
           export IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' solar-system-app)
           echo $IP
 
@@ -100,3 +101,119 @@ jobs:
 # docker inspect: to get the ip of the container
 # wget if the container return "live" grep will find it this means the app work | if grep not found "live" > step fail > pipeline fail
 # 127.0.0.1: this is loopback address : means that the device talk to self whem i hit 127.0.0.1:3000 > i say talk to server that work on the same device
+  
+
+  terraform:
+    needs: [docker]
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: configure aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: setup terraform
+        uses: hashicorp/setup-terraform@v3
+
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform fmt
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform Validate
+        run: terraform validate 
+        
+      - name: terraform plan
+        id: plan
+        run: terraform plan 
+
+      - run: echo ${{ steps.plan.outputs.stdout }}
+      - run: echo ${{ steps.plan.outputs.stderr }}
+      - run: echo ${{ steps.plan.outputs.exitcode }}
+
+      - name: terraform apply 
+        run: terraform apply --auto-approve
+
+  k8s_deploy:
+    needs: [terraform]
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: k8s
+
+    env:
+      NAMESPACE: dev
+      REPLICAS: 2
+      K8S_IMAGE: ${{ env.DOCKER_IMAGE }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Get Terraform outputs
+        id: tf_outputs
+        run: |
+          CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
+          echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_ENV
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
+
+      - name: Apply Kubernetes manifests
+        run: |
+          envsubst < deployment.yaml | kubectl apply -f -
+          envsubst < service.yaml | kubectl apply -f -
+          envsubst < ingress.yaml | kubectl apply -f -
+
+      - name: Wait for deployment rollout
+        run: kubectl rollout status deployment/solar-system -n $NAMESPACE
+
+      - name: Wait for Ingress IP
+        id: wait_ingress
+        run: |
+          echo "Waiting for Ingress external IP..."
+          for i in {1..30}; do
+            INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
+                        -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [ -n "$INGRESS_IP" ]; then
+              break
+            fi
+            echo "Not ready yet, waiting 10s..."
+            sleep 10
+          done
+          if [ -z "$INGRESS_IP" ]; then
+            echo "Ingress IP not available, using hostname fallback"
+            INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
+                        -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          fi
+          echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
+          echo "Ingress ready at $INGRESS_IP"
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n $NAMESPACE -l app=solar-system
+          kubectl get svc -n $NAMESPACE -l app=solar-system
+          kubectl get ingress -n $NAMESPACE
+
+      - name: Output application URL
+        run: |
+          echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
