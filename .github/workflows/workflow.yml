@@ -119,89 +119,43 @@ jobs:
       - name: terraform apply 
         run: terraform apply --auto-approve
 
-  k8s_deploy:
-    needs: [terraform]
-    runs-on: ubuntu-latest
+  deploy:
+        needs: terraform
+        name: deploy to EKS
+        runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: kubernetes/staging
+        steps:
+            - name: checkout config files
+              uses: actions/checkout@v4
 
-    env:
-      NAMESPACE: staging
-      REPLICAS: 2
-      K8S_IMAGE: $DOCKER_IMAGE
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        
-      - name: configure aws
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@v4.3.1
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: us-east-1
 
-      - name: setup terraform
-        uses: hashicorp/setup-terraform@v3
+            - name: updat kubeconfig
+              run: | 
+                    aws eks --region us-east-1 update-kubeconfig --name stage-eks-cluster
 
-      - name: terraform init
-        run: terraform init
-        working-directory: terraform
+            - name: Trigger app deployment
+              uses: statsig-io/kubectl-via-eksctl@main
+              env:
+                 aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                 aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                 region: us-east-1
+                 cluster: final-project_eks
 
-      - name: Get Terraform outputs
-        id: tf_outputs
-        run: |
-          CLUSTER_NAME=$(terraform output -raw eks_cluster_name)
-          echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_ENV
-        working-directory: terraform
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
+            - name: Deploy k8s deployments
+              run: |
+               kubectl apply -f deployment.yml
+               kubectl apply -f service.yml
+              working-directory: ./k8s
 
-      - name: Configure kubeconfig for EKS
-        run: |
-          aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
-
-      - name: Apply Kubernetes manifests
-        run: |
-          envsubst < deployment.yaml | kubectl apply -f -
-          envsubst < service.yaml | kubectl apply -f -
-          envsubst < ingress.yaml | kubectl apply -f -
-
-      - name: Wait for deployment rollout
-        run: kubectl rollout status deployment/solar-system -n $NAMESPACE
-
-      - name: Wait for Ingress IP
-        id: wait_ingress
-        run: |
-          echo "Waiting for Ingress external IP..."
-          for i in {1..30}; do
-            INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
-                        -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [ -n "$INGRESS_IP" ]; then
-              break
-            fi
-            echo "Not ready yet, waiting 10s..."
-            sleep 10
-          done
-          if [ -z "$INGRESS_IP" ]; then
-            echo "Ingress IP not available, using hostname fallback"
-            INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller \
-                        -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          fi
-          echo "INGRESS_IP=$INGRESS_IP" >> $GITHUB_ENV
-          echo "Ingress ready at $INGRESS_IP"
-
-      - name: Verify deployment
-        run: |
-          kubectl get pods -n $NAMESPACE -l app=solar-system
-          kubectl get svc -n $NAMESPACE -l app=solar-system
-          kubectl get ingress -n $NAMESPACE
-
-      - name: Output application URL
-        run: |
-          echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
+            - name: Verify Deployment
+              run: |
+                kubectl get pods  
+                kubectl get svc
