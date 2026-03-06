@@ -138,7 +138,9 @@ jobs:
 
             - name: updat kubeconfig
               run: | 
-                    aws eks --region us-east-1 update-kubeconfig --name final-project_eks
+                    aws eks  update-kubeconfig \
+                      --region us-east-1 \
+                      --name final-project_eks \
 
             - name: Trigger app deployment
               uses: statsig-io/kubectl-via-eksctl@main
