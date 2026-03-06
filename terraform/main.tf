@@ -23,10 +23,12 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-public-${count.index + 1}"
-    Tier = "public"
-    }
-  )
+  Name = "${var.name_prefix}-public-${count.index + 1}"
+  Tier = "public"
+
+  "kubernetes.io/role/elb" = "1"
+  "kubernetes.io/cluster/${var.name_prefix}_eks" = "shared"
+})
 
 }
 
@@ -38,9 +40,12 @@ resource "aws_subnet" "private" {
   map_public_ip_on_launch = true # O
 
   tags = merge(var.tags, {
-    Name = "${var.name_prefix}-private-${count.index + 1}" #iti-private-1 and iti-private-1
-    Tier = "private"
-  })
+  Name = "${var.name_prefix}-private-${count.index + 1}"
+  Tier = "private"
+
+  "kubernetes.io/role/internal-elb" = "1"
+  "kubernetes.io/cluster/${var.name_prefix}_eks" = "shared"
+})
 }
 
 resource "aws_eip" "nat" {
