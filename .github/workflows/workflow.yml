@@ -162,6 +162,9 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: setup terraform
+        uses: hashicorp/setup-terraform@v3
+
       - name: Get Terraform outputs
         id: tf_outputs
         run: |
@@ -217,3 +220,4 @@ jobs:
         run: |
 
           echo "Application URL: https://solar-system-$NAMESPACE.${INGRESS_IP}.nip.io"
+
