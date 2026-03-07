@@ -9,6 +9,12 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+      
+      - name: setup terraform
+        uses: hashicorp/setup-terraform@v3
+        
+      - name: Terraform Init
+        run: terraform init
 
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
