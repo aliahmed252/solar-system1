@@ -44,6 +44,12 @@ jobs:
           cd terraform
           terraform destroy -target=aws_nat_gateway.this -auto-approve
 
+      - name: destroy subnet public
+        run: |
+          cd terraform
+          terraform destroy -target=aws_subnet.public[count.index].id -auto-approve
+          terraform destroy -target=aws_subnet.private[count.index].id -auto-approve
+
       # 🔹 Destroy remaining resources (Subnets, IGW, VPC, Security Groups, etc.)
       - name: Destroy Remaining Infrastructure
         run: |
