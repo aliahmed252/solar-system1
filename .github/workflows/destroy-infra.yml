@@ -12,7 +12,7 @@ jobs:
       
       - name: setup terraform
         uses: hashicorp/setup-terraform@v3
-        
+
       - name: Terraform Init
         run: terraform init
 
@@ -26,4 +26,5 @@ jobs:
       - name: Terraform Destroy
         run: |
           cd terraform
+          terraform init
           terraform destroy -auto-approve
