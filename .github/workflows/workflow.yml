@@ -1,7 +1,6 @@
 name: solar system workflow
 on:
-  push:
-    branches: ["main", "feature/*"]
+  workflow_dispatch:  
 
 env:
   MONGO_URI: 'mongodb+srv://supercluster.d83jj.mongodb.net/superData'

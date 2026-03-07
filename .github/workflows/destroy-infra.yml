@@ -1,7 +1,7 @@
 name: Destroy Infra
 
-on:
-  workflow_dispatch:  
+push:
+    branches: ["main", "feature/*"]
 
 jobs:
   destroy:
