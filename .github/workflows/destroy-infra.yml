@@ -1,51 +1,44 @@
-name: Destroy Infra
+name: 'Terraform Destroy'
+
 on:
-  
   push:
-    branches: ["main", "feature/*"]
+    inputs:
+      destroy:
+        description: 'Destroy infrastructure?'
+        required: true
+        type: boolean
 
 jobs:
-  destroy:
+  terraform-destroy:
+    name: 'Terraform Destroy'
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+    environment: production
 
-      - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v4
+    steps:
+      # Checkout the repository to access the Terraform configuration files
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # Configure AWS credentials for the workflow
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4.3.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: us-west-2
+    
+      # Set up the Terraform CLI
+      - name: HashiCorp - Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+        with:
+          terraform_version: "1.1.7"
 
+      # Initialize Terraform, which is required to access the remote state
       - name: Terraform Init
-        run: |
-          cd terraform
-          terraform init
+        run: terraform init
+        working-directory: ./Terraform
 
-      # 🔹 Destroy Node Group first
-      - name: Destroy EKS Node Group
-        run: |
-          cd terraform
-          terraform destroy -target=aws_eks_node_group.eks_node_group -auto-approve
-
-      # 🔹 Destroy EKS Cluster
-      - name: Destroy EKS Cluster
-        run: |
-          cd terraform
-          terraform destroy -target=aws_eks_cluster.eks -auto-approve
-
-      # 🔹 Destroy NAT Gateways
-      - name: Destroy NAT Gateways
-        run: |
-          cd terraform
-          terraform destroy -target=aws_nat_gateway.this -auto-approve
-
-      # 🔹 Destroy remaining resources (Subnets, IGW, VPC, Security Groups, etc.)
-      - name: Destroy Remaining Infrastructure
-        run: |
-          cd terraform
-          terraform destroy -auto-approve
+      # Run the terraform destroy command to remove the infrastructure
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve
+        working-directory: ./Terraform
