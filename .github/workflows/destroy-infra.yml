@@ -50,8 +50,9 @@ jobs:
           terraform destroy -target=aws_subnet.public -auto-approve
           terraform destroy -target=aws_subnet.private -auto-approve
 
-      # 🔹 Destroy remaining resources (Subnets, IGW, VPC, Security Groups, etc.)
+      # 🔹 Destroy remaining resources (Subnet, IGW, VPC, Security Groups, etc.)
       - name: Destroy Remaining Infrastructure
         run: |
           cd terraform
+
           terraform destroy -auto-approve
