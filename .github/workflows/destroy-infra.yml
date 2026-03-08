@@ -24,19 +24,18 @@ jobs:
           cd terraform
           terraform init
 
-      # 🔹 Destroy Node Group first
+      
       - name: Destroy EKS Node Group
         run: |
           cd terraform
           terraform destroy -target=aws_eks_node_group.eks_node_group -auto-approve
 
-      # 🔹 Destroy EKS Cluster
       - name: Destroy EKS Cluster
         run: |
           cd terraform
           terraform destroy -target=aws_eks_cluster.eks -auto-approve
 
-      # 🔹 Destroy NAT Gateways
+ 
       - name: Destroy NAT Gateways
         run: |
           cd terraform
@@ -48,10 +47,11 @@ jobs:
           terraform destroy -target=aws_subnet.public -auto-approve
           terraform destroy -target=aws_subnet.private -auto-approve
 
-      # 🔹 Destroy remaining resources (Subnet, IGW, VPC, Security Groups, etc.)
+  
       - name: Destroy Remaining Infrastructure
         run: |
           cd terraform
 
           terraform destroy -auto-approve
+
 
