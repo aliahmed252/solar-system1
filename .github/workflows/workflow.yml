@@ -150,11 +150,10 @@ jobs:
                  cluster: final-project_eks
 
             - name: Deploy k8s deployments
-             # env:
-                #K8S_IMAGE: ${{ env.DOCKER_IMAGE }}
-                #envsubst < deployment.yml | kubectl apply -f -
+              env:
+                K8S_IMAGE: ${{ env.DOCKER_IMAGE }} 
               run: |
-                kubectl apply -f deployment.yml
+                envsubst < deployment.yml | kubectl apply -f -
                 kubectl apply -f service.yml
               working-directory: k8s
 

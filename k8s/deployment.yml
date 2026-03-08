@@ -14,7 +14,7 @@ spec:
    spec:
     containers:
     - name: microservice
-      image: mernaislam2/solar-system:latest
-      #image: ${K8S_IMAGE}
+      #image: mernaislam2/solar-system:latest
+      image: ${K8S_IMAGE}
       ports:
       - containerPort: 3000
