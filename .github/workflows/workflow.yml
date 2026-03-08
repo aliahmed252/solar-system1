@@ -161,3 +161,5 @@ jobs:
               run: |
                 kubectl get pods  
                 kubectl get svc
+                kubectl get pods -o wide
+                kubectl get nodes
