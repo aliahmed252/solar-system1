@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
  name: microservice
 spec:
-  replicas: 3
+  replicas: 2
   selector:
    matchLabels:
     app: microservice
@@ -14,6 +14,6 @@ spec:
    spec:
     containers:
     - name: microservice
-      image: mernaislam2/solar-system:latest
+      image: ${K8S_IMAGE}
       ports:
       - containerPort: 3000
