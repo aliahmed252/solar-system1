@@ -314,6 +314,7 @@ resource "aws_eks_access_entry" "github_actions" {
   cluster_name  = "final-project_eks"
   principal_arn = "arn:aws:iam::829163697796:user/ali-ahmed"
   type          = "STANDARD"
+  depends_on    = [aws_eks_cluster.eks]
 }
 
 resource "aws_eks_access_policy_association" "github_admin" {
@@ -325,4 +326,5 @@ resource "aws_eks_access_policy_association" "github_admin" {
   access_scope {
     type = "cluster"
   }
+  depends_on    = [aws_eks_access_entry.github_actions]
 }
