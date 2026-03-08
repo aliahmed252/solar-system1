@@ -1,8 +1,6 @@
 name: Destroy Infra
 on:
-  
-  push:
-    branches: ["main", "feature/*"]
+  workflow_dispatch: 
 
 jobs:
   destroy:
@@ -56,3 +54,4 @@ jobs:
           cd terraform
 
           terraform destroy -auto-approve
+
