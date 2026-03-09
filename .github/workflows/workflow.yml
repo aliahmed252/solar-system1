@@ -108,6 +108,8 @@ jobs:
       - name: Terraform Init
         run: terraform init
       - name: Terraform fmt
+        run: terraform fmt --recursive
+      - name: Terraform fmt
         run: terraform fmt -check
         continue-on-error: true
       - name: Terraform Validate
