@@ -172,9 +172,10 @@ resource "aws_iam_role_policy_attachment" "ec2_node_ecr_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-resource "aws_iam_role_policy_attachment" "ec2_node_cni_policy" {
+resource "aws_iam_role_policy_attachment" "ec2_node_cni_policy" { 
   role       = aws_iam_role.ec2_node_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+#ec2_node_cni_policy: cni: (container network interface) in k8s any pods must take (ip address , network interface)
 }
 
 
@@ -183,7 +184,7 @@ resource "aws_security_group" "eks_sg" {
   description = "security_group for EKS control plane "
   vpc_id      = aws_vpc.this.id
   ingress {
-    description = "allow https"
+    description = "allow access to k8s api server"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -191,7 +192,7 @@ resource "aws_security_group" "eks_sg" {
   }
 
   egress {
-    description = "the outcome traffic"
+    description = "allow control plane to send traffic to any place like (nodes and aws services)"
     from_port   = 0    # allow any port
     to_port     = 0    # allow any port
     protocol    = "-1" # allow all protocols
@@ -226,7 +227,7 @@ resource "aws_security_group" "eks_node_sg" {
   }
 
   ingress {
-    description = "allow http from cluster"
+    description = "allow control plane to talk to nodes"
     from_port   = 443
     to_port     = 443
     # any resource has (cluster security group) can talk to the nodes on port 443
@@ -239,6 +240,7 @@ resource "aws_security_group" "eks_node_sg" {
     to_port     = 0 #allow all outcome traffic on any port on any protocol
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+# allow nodes to send traffic to any place to (pull images from dockerhub, communicate with aws)
   }
   tags = merge(var.tags, {
     name = "${var.name_prefix}_eks_node_sg"
@@ -297,27 +299,29 @@ resource "aws_eks_node_group" "eks_node_group" {
     aws_iam_role_policy_attachment.ec2_node_worker_policy,
     aws_iam_role_policy_attachment.ec2_node_cni_policy,
     aws_iam_role_policy_attachment.ec2_node_ecr_policy
+#ec2_node_ecr_policy:control access on the container images 
   ]
 }
 
-resource "null_resource" "generate_kubeconfig" {
+resource "null_resource" "generate_kubeconfig" { #empty resourse use for execute local commands after create another resources 
   #empty resource use for trigger or provisioners
-  depends_on = [aws_eks_cluster.eks]
-  provisioner "local-exec" {
+  depends_on = [aws_eks_cluster.eks] #this resource will not be executed untill the eks be created
+  provisioner "local-exec" { #run commands on the local device or the runner
     #execute the following command on the local device
     command = "aws eks --region ${var.region} update-kubeconfig --name ${aws_eks_cluster.eks.name}"
-
+# this command generate local kubeconfig file on the device or the runner after create the cluster to use kubectl on the  this cluster directly
   }
 }
 
-resource "aws_eks_access_entry" "github_actions" {
+resource "aws_eks_access_entry" "github_actions" { # add the iam user (ali-ahmed) make this user able to access the cluster
   cluster_name  = "final-project_eks"
   principal_arn = "arn:aws:iam::829163697796:user/ali-ahmed"
-  type          = "STANDARD"
+  type          = "STANDARD" 
   depends_on    = [aws_eks_cluster.eks]
 }
 
-resource "aws_eks_access_policy_association" "github_admin" {
+resource "aws_eks_access_policy_association" "github_admin" { # after add the user ali-ahmed as  a user can access the cluster 
+#here we defined what can the user do  we give the user policy (AmazonEKSClusterAdminPolicy) : this policy give the user the full access on the cluster 
   cluster_name  = "final-project_eks"
   principal_arn = "arn:aws:iam::829163697796:user/ali-ahmed"
 
