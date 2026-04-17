@@ -201,6 +201,8 @@ jobs:
             --wait \
             --timeout 30m \
             --atomic \
+            --rollback-on-failure \
+            --skip-crds \
             --set grafana.service.type=LoadBalancer
 
           kubectl get pods -n prometheus
