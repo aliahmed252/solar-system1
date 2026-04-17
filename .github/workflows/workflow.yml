@@ -188,6 +188,12 @@ jobs:
   
       - name: Install Helm
         uses: azure/setup-helm@v4
+      - name: Install CRDs
+        run: |
+          kubectl apply -f https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.75.0/bundle.yaml
+
+          kubectl wait --for=condition=Established crd --all --timeout=5m
+
       - name: Install Monitoring Stack
         run: |
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -197,10 +203,9 @@ jobs:
             --namespace monitoring \
             --create-namespace \
             --wait \
-            --timeout 20m \
+            --timeout 30m \
             --atomic \
-            --set grafana.service.type=LoadBalancer \
-            --set grafana.adminPassword=admin123
+            --set grafana.service.type=LoadBalancer
         
       - name: Verify
         run: |
