@@ -165,3 +165,75 @@ jobs:
                 kubectl get svc
                 kubectl get pods -o wide
                 kubectl get nodes
+  monitoring:
+    needs: deploy
+    runs-on: ubuntu-latest
+  
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+  
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+  
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region us-east-1 \
+            --name final-project_eks
+  
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+      - name: Install Monitoring Stack
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --create-namespace \
+            --set grafana.service.type=LoadBalancer \
+            --set grafana.adminPassword=admin123
+        
+      - name: Verify
+        run: |
+          kubectl get pods -n monitoring
+          kubectl get svc -n monitoring
+
+
+  argocd-install:
+    needs: monitoring
+    runs-on: ubuntu-latest
+  
+    steps:
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+  
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region us-east-1 \
+            --name final-project_eks
+  
+      - name: Install ArgoCD
+        run: |
+          kubectl create namespace argocd || true
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          
+      - name: Expose ArgoCD
+        run: |
+          kubectl patch svc argocd-server -n argocd \
+            -p '{"spec": {"type": "LoadBalancer"}}'  
+      - name: Get ArgoCD Password
+        run: |
+          kubectl get svc argocd-server -n argocd
+          kubectl get secret argocd-initial-admin-secret -n argocd \
+            -o jsonpath="{.data.password}" | base64 --decode   

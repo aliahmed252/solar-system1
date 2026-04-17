@@ -285,6 +285,10 @@ resource "aws_eks_node_group" "eks_node_group" {
     min_size     = var.min_size
   }
 
+  remote_access {
+    ec2_ssh_key = var.key_pair_name
+  }
+
   update_config {
     max_unavailable = 1 # on update the max size of unavailable nodes =1
     #this means the update is node by node for (high availability)

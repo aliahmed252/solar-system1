@@ -66,3 +66,8 @@ variable "max_size" {
   type        = number
   default     = 3
 }
+
+variable "key_pair_name" {
+  description = "the ec2_ssh_key"
+  type        = string
+}
