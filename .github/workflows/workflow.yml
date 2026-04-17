@@ -196,6 +196,9 @@ jobs:
           helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             --create-namespace \
+            --wait \
+            --timeout 20m \
+            --atomic \
             --set grafana.service.type=LoadBalancer \
             --set grafana.adminPassword=admin123
         
